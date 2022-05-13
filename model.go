@@ -13,7 +13,7 @@ type Model struct {
 
 func (m Model) Save(ctx context.Context, c *dynamodb.Client) error {
 	_, err := c.PutItem(ctx, &dynamodb.PutItemInput{
-		Item:                        m.ToDynamo(),
+		Item:                        m.MarshalDynamoDB(),
 		TableName:                   &m.TableName,
 		ConditionExpression:         nil,
 		ConditionalOperator:         "",
@@ -33,9 +33,9 @@ func (m Model) Select(fields ...string) *QueryBuilder {
 	}).Select(fields)
 }
 
-func (m Model) ToDynamo() map[string]types.AttributeValue {
+func (m Model) MarshalDynamoDB() map[string]types.AttributeValue {
 	return nil
 }
 
-func (m Model) FromDynamo(v map[string]types.AttributeValue) {
+func (m Model) UnmarshalDynamoDB(v map[string]types.AttributeValue) {
 }

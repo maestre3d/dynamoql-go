@@ -5,10 +5,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-
 	"github.com/aws/aws-sdk-go-v2/config"
 	dynamodb2 "github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	dynamodb "github.com/maestre3d/dynamodb-go"
 )
 
@@ -21,7 +20,7 @@ type Book struct {
 	PublishDate time.Time
 }
 
-func (b Book) ToDynamo() map[string]types.AttributeValue {
+func (b Book) MarshalDynamoDB() map[string]types.AttributeValue {
 	log.Print("custom book marshal")
 	return nil
 }
@@ -35,7 +34,7 @@ func main() {
 			TableName: "books",
 		},
 	}
-	book.ToDynamo()
+	book.MarshalDynamoDB()
 	_ = book.Save(ctx, client)
 
 	out, token, err := book.
