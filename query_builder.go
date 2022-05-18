@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -13,21 +12,14 @@ import (
 const defaultLimit = 10
 
 type Condition struct {
-	Negate   bool
-	Operator ConditionalOperator
-	Key      string
-	Value    interface{}
-}
-
-func marshalDynamoDBCondList(c []Condition) map[string]types.AttributeValue {
-	if c == nil || len(c) == 0 {
-		return map[string]types.AttributeValue{}
-	}
-	resBuf := make(map[string]types.AttributeValue, len(c))
-	for i := range c {
-		resBuf[c[i].Key] = FormatAttribute(c[i].Value)
-	}
-	return resBuf
+	Negate, IsKey bool
+	Operator      ConditionalOperator
+	// Used by Size operator only
+	SecondaryOperator ConditionalOperator
+	Field             string
+	Value             interface{}
+	// Used by Between and In operators only
+	ExtraValues []interface{}
 }
 
 type QueryBuilder struct {
@@ -40,10 +32,8 @@ type QueryBuilder struct {
 	index                     *string
 	projectedFieldsExpression *string
 	returnMetrics             types.ReturnConsumedCapacity
-
-	conditions []Condition
-
-	pageToken PageToken
+	conditions                []Condition
+	pageToken                 PageToken
 }
 
 func NewQueryBuilder() *QueryBuilder {
@@ -105,26 +95,26 @@ func (q *QueryBuilder) OrderBy(o Ordering) *QueryBuilder {
 	return q
 }
 
-func (q *QueryBuilder) WithIndex(i string) *QueryBuilder {
+func (q *QueryBuilder) Index(i string) *QueryBuilder {
 	if i != "" {
 		q.index = &i
 	}
 	return q
 }
 
-func (q *QueryBuilder) WithStrongConsistency() *QueryBuilder {
+func (q *QueryBuilder) StrongConsistency() *QueryBuilder {
 	q.isConsistent = true
 	return q
 }
 
-func (q *QueryBuilder) WithMetrics(v types.ReturnConsumedCapacity) *QueryBuilder {
+func (q *QueryBuilder) Metrics(v types.ReturnConsumedCapacity) *QueryBuilder {
 	q.returnMetrics = v
 	return q
 }
 
-func (q *QueryBuilder) Get(ctx context.Context, c *dynamodb.Client) (dynamodb.GetItemOutput, error) {
+func (q *QueryBuilder) ExecGet(ctx context.Context, c *dynamodb.Client) (dynamodb.GetItemOutput, error) {
 	out, err := c.GetItem(ctx, &dynamodb.GetItemInput{
-		Key:                      marshalDynamoDBCondList(q.conditions),
+		Key:                      buildExpressionValuesRaw(q.conditions),
 		TableName:                &q.table,
 		ConsistentRead:           &q.isConsistent,
 		ExpressionAttributeNames: nil,
@@ -144,26 +134,30 @@ type QueryResponse struct {
 	ConsumptionMetrics []types.ConsumedCapacity
 }
 
-func (q *QueryBuilder) Query(ctx context.Context, c *dynamodb.Client) (QueryResponse, error) {
+func (q *QueryBuilder) newQueryInput() *dynamodb.QueryInput {
 	selectOpt := types.SelectAllAttributes
 	if q.projectedFieldsExpression != nil {
 		selectOpt = types.SelectSpecificAttributes
 	}
-	in := &dynamodb.QueryInput{
+	builder := newExpressionBuilder(q.operator, q.negate, q.conditions)
+	return &dynamodb.QueryInput{
 		TableName:                 &q.table,
 		ConsistentRead:            &q.isConsistent,
-		ExpressionAttributeNames:  nil,
-		ExpressionAttributeValues: nil,
-		FilterExpression:          nil,
+		ExpressionAttributeNames:  builder.expressionNamesBuf,
+		ExpressionAttributeValues: builder.expressionValuesBuf,
+		FilterExpression:          builder.expressionFilter,
 		IndexName:                 q.index,
-		KeyConditionExpression:    nil,
+		KeyConditionExpression:    builder.expressionKey,
 		Limit:                     &q.limit,
 		ProjectionExpression:      q.projectedFieldsExpression,
 		ReturnConsumedCapacity:    q.returnMetrics,
 		ScanIndexForward:          aws.Bool(q.ordering == Ascend),
 		Select:                    selectOpt,
 	}
+}
 
+func (q *QueryBuilder) ExecQuery(ctx context.Context, c *dynamodb.Client) (QueryResponse, error) {
+	in := q.newQueryInput()
 	// reduce overall buffer size by half to avoid unnecessary malloc if no further items are found.
 	// If all items found, golang internals will grow slice's cap by twice when hitting the half-divided capacity,
 	// reaching the original capacity required by the buffer.
@@ -180,8 +174,8 @@ func (q *QueryBuilder) Query(ctx context.Context, c *dynamodb.Client) (QueryResp
 			break
 		}
 		itemsBuf = append(itemsBuf, out.Items...)
-		count = out.Count
 		nextPage = out.LastEvaluatedKey
+		count += out.Count
 		if out.ConsumedCapacity != nil {
 			consumedCapacityBuf = append(consumedCapacityBuf, *out.ConsumedCapacity)
 		}
@@ -196,4 +190,12 @@ func (q *QueryBuilder) Query(ctx context.Context, c *dynamodb.Client) (QueryResp
 		Count:              count,
 		ConsumptionMetrics: consumedCapacityBuf,
 	}, nil
+}
+
+func (q *QueryBuilder) ExecRawQuery(ctx context.Context, c *dynamodb.Client) (dynamodb.QueryOutput, error) {
+	out, err := c.Query(ctx, q.newQueryInput())
+	if err != nil {
+		return dynamodb.QueryOutput{}, err
+	}
+	return *out, nil
 }
