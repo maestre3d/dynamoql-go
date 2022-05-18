@@ -1,4 +1,4 @@
-package dynamodb_go
+package dynamoql
 
 import (
 	"bytes"
@@ -23,6 +23,17 @@ const (
 //
 // See ref: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.CoreComponents.html
 type PageToken map[string]types.AttributeValue
+
+// NewPageTokenString converts the given base64-coded string into a PageToken.
+//
+// It will panic if fails to decode base64 string.
+func NewPageTokenString(rawStr string) PageToken {
+	t := PageToken{}
+	if err := t.Decode(rawStr); err != nil {
+		panic(err)
+	}
+	return t
+}
 
 func (t PageToken) toBinary() []byte {
 	buffer := new(bytes.Buffer)

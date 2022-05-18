@@ -1,9 +1,10 @@
-module github.com/maestre3d/dynamodb-go
+module github.com/maestre3d/dynamoql
 
 go 1.17
 
 require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.15.4
+	github.com/modern-go/reflect2 v1.0.2
 	github.com/stretchr/testify v1.7.1
 )
 

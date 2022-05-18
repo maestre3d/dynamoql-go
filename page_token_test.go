@@ -1,10 +1,10 @@
-package dynamodb_go_test
+package dynamoql_test
 
 import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	dynamodb "github.com/maestre3d/dynamodb-go"
+	"github.com/maestre3d/dynamoql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,7 +12,7 @@ import (
 func TestPageToken_Encode(t *testing.T) {
 	tests := []struct {
 		Name  string
-		Token dynamodb.PageToken
+		Token dynamoql.PageToken
 		Exp   string
 	}{
 		{
@@ -22,25 +22,25 @@ func TestPageToken_Encode(t *testing.T) {
 		},
 		{
 			Name: "Valid Partition Key only String",
-			Token: dynamodb.PageToken{
-				"user_id": &types.AttributeValueMemberS{
+			Token: dynamoql.PageToken{
+				"author_id": &types.AttributeValueMemberS{
 					Value: "123-abc",
 				},
 			},
-			Exp: "U3x1c2VyX2lkPTEyMy1hYmM=",
+			Exp: "U3xhdXRob3JfaWQ9MTIzLWFiYw==",
 		},
 		{
 			Name: "Valid Partition Key only Binary",
-			Token: dynamodb.PageToken{
-				"user_id": &types.AttributeValueMemberB{
+			Token: dynamoql.PageToken{
+				"author_id": &types.AttributeValueMemberB{
 					Value: []byte("123-abc"),
 				},
 			},
-			Exp: "Qnx1c2VyX2lkPTEyMy1hYmM=",
+			Exp: "QnxhdXRob3JfaWQ9MTIzLWFiYw==",
 		},
 		{
 			Name: "Valid Partition Key only Number",
-			Token: dynamodb.PageToken{
+			Token: dynamoql.PageToken{
 				"timestamp_unix": &types.AttributeValueMemberN{
 					Value: "123",
 				},
@@ -49,7 +49,7 @@ func TestPageToken_Encode(t *testing.T) {
 		},
 		{
 			Name: "Valid Composite Key",
-			Token: dynamodb.PageToken{
+			Token: dynamoql.PageToken{
 				"user_id": &types.AttributeValueMemberS{
 					Value: "123-abc",
 				},
@@ -72,17 +72,17 @@ func TestPageToken_Encode(t *testing.T) {
 func TestPageToken_Decode(t *testing.T) {
 	tests := []struct {
 		Name  string
-		Token dynamodb.PageToken
+		Token dynamoql.PageToken
 		Exp   string
 	}{
 		{
 			Name:  "Empty",
-			Token: dynamodb.PageToken{},
+			Token: dynamoql.PageToken{},
 			Exp:   "",
 		},
 		{
 			Name: "Valid Partition Key only String",
-			Token: dynamodb.PageToken{
+			Token: dynamoql.PageToken{
 				"user_id": &types.AttributeValueMemberS{
 					Value: "123-abc",
 				},
@@ -91,7 +91,7 @@ func TestPageToken_Decode(t *testing.T) {
 		},
 		{
 			Name: "Valid Partition Key only Binary",
-			Token: dynamodb.PageToken{
+			Token: dynamoql.PageToken{
 				"user_id": &types.AttributeValueMemberB{
 					Value: []byte("123-abc"),
 				},
@@ -100,7 +100,7 @@ func TestPageToken_Decode(t *testing.T) {
 		},
 		{
 			Name: "Valid Partition Key only Number",
-			Token: dynamodb.PageToken{
+			Token: dynamoql.PageToken{
 				"timestamp_unix": &types.AttributeValueMemberN{
 					Value: "123",
 				},
@@ -109,7 +109,7 @@ func TestPageToken_Decode(t *testing.T) {
 		},
 		{
 			Name: "Valid Composite Key",
-			Token: dynamodb.PageToken{
+			Token: dynamoql.PageToken{
 				"user_id": &types.AttributeValueMemberS{
 					Value: "123-abc",
 				},
@@ -123,7 +123,7 @@ func TestPageToken_Decode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			token := dynamodb.PageToken{}
+			token := dynamoql.PageToken{}
 			err := token.Decode(tt.Exp)
 			require.NoError(t, err)
 			assert.EqualValues(t, tt.Token, token)
@@ -132,7 +132,7 @@ func TestPageToken_Decode(t *testing.T) {
 }
 
 func BenchmarkPageToken_Encode(b *testing.B) {
-	token := dynamodb.PageToken{
+	token := dynamoql.PageToken{
 		"user_id": &types.AttributeValueMemberS{
 			Value: "123-abc",
 		},
@@ -147,7 +147,7 @@ func BenchmarkPageToken_Encode(b *testing.B) {
 }
 
 func BenchmarkPageToken_Decode(b *testing.B) {
-	token := dynamodb.PageToken{
+	token := dynamoql.PageToken{
 		"user_id": &types.AttributeValueMemberS{
 			Value: "123-abc",
 		},
@@ -156,7 +156,7 @@ func BenchmarkPageToken_Decode(b *testing.B) {
 		},
 	}
 	data := token.Encode()
-	tokenB := dynamodb.PageToken{}
+	tokenB := dynamoql.PageToken{}
 	for i := 0; i < b.N; i++ {
 		b.ReportAllocs()
 		_ = tokenB.Decode(data)
