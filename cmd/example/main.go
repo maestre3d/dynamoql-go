@@ -25,38 +25,37 @@ type Author struct {
 }
 
 type Book struct {
-	Author      string
 	BookID      string
 	DisplayName string
 	ISBN        string
 	Price       float32
 	Stock       int
 	PublishDate time.Time
+	Picture     string
 }
 
-var _ dynamoql.Marshaler = Book{}
-var _ dynamoql.Unmarshaler = &Book{}
+var _ dynamoql.Schema = &Book{}
 
 func (b Book) MarshalDynamoDB() (map[string]types.AttributeValue, error) {
 	return map[string]types.AttributeValue{
-		"book_id":      dynamoql.FormatAttribute(b.BookID),
-		"author_id":    dynamoql.FormatAttribute(b.Author),
-		"display_name": dynamoql.FormatAttribute(b.DisplayName),
-		"isbn":         dynamoql.FormatAttribute(b.ISBN),
-		"publish_date": dynamoql.FormatAttribute(b.PublishDate),
-		"price":        dynamoql.FormatAttribute(b.Price),
-		"stock":        dynamoql.FormatAttribute(b.Stock),
+		"partition_key": dynamoql.FormatAttribute(b.BookID),
+		"display_name":  dynamoql.FormatAttribute(b.DisplayName),
+		"isbn":          dynamoql.FormatAttribute(b.ISBN),
+		"publish_date":  dynamoql.FormatAttribute(b.PublishDate),
+		"price":         dynamoql.FormatAttribute(b.Price),
+		"stock":         dynamoql.FormatAttribute(b.Stock),
+		"picture":       dynamoql.FormatAttribute(b.Picture),
 	}, nil
 }
 
 func (b *Book) UnmarshalDynamoDB(v map[string]types.AttributeValue) error {
-	b.Author = dynamoql.ParseString(v["author_id"])
-	b.BookID = dynamoql.ParseString(v["book_id"])
-	b.DisplayName = dynamoql.ParseString(v["display_name"])
-	b.ISBN = dynamoql.ParseString(v["isbn"])
-	b.Price = dynamoql.ParseFloat32(v["price"])
-	b.Stock = dynamoql.ParseInt(v["stock"])
-	b.PublishDate = dynamoql.ParseTime(v["publish_date"])
+	b.BookID = dynamoql.MustParseString(v["partition_key"])
+	b.DisplayName = dynamoql.MustParseString(v["display_name"])
+	b.ISBN = dynamoql.MustParseString(v["isbn"])
+	b.Price = dynamoql.MustParseFloat32(v["price"])
+	b.Stock = dynamoql.MustParseInt(v["stock"])
+	b.PublishDate = dynamoql.MustParseTime(v["publish_date"])
+	b.Picture = dynamoql.MustParseString(v["picture"])
 	return nil
 }
 
@@ -67,15 +66,15 @@ func main() {
 	// uses composite key, hence two conditions required
 	res, err := dynamoql.
 		Select().
-		From("Books").
+		From("Graph").
 		Where(dynamoql.Condition{
 			Operator: dynamoql.Equals,
-			Field:    "book_id",
-			Value:    "1",
+			Field:    "partition_key",
+			Value:    "book#456",
 		}, dynamoql.Condition{
 			Operator: dynamoql.Equals,
-			Field:    "author_id",
-			Value:    "foobar-123",
+			Field:    "sort_key",
+			Value:    "book#456",
 		}).
 		Metrics(types.ReturnConsumedCapacityTotal).
 		ExecGet(ctx, client)
@@ -88,25 +87,24 @@ func main() {
 
 	// Query
 	out, err := dynamoql.
-		Select("book_id", "isbn", "publish_date").
-		From("Books").
+		Select().
+		From("Graph").
 		Where(dynamoql.Condition{
 			Operator: dynamoql.Equals,
-			Field:    "author_id",
-			Value:    "foobar-123",
+			Field:    "sort_key",
+			Value:    "author#abc",
 			IsKey:    true,
 		}, dynamoql.Condition{
-			Operator:          dynamoql.Size,
-			SecondaryOperator: dynamoql.GreaterThan,
-			Field:             "isbn",
-			Value:             10,
-			Negate:            false,
+			Operator: dynamoql.BeginsWith,
+			Field:    "partition_key",
+			Value:    "book#",
+			IsKey:    true,
 		}).
 		Or().
-		Limit(8).
+		Limit(1).
+		Index("GsiOverload").
 		OrderBy(dynamoql.Descend).
 		Metrics(types.ReturnConsumedCapacityTotal).
-		StrongConsistency().
 		ExecQuery(ctx, client)
 	if err != nil {
 		panic(err)
