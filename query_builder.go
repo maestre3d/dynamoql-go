@@ -139,15 +139,15 @@ func (q *QueryBuilder) newQueryInput() *dynamodb.QueryInput {
 	if q.projectedFieldsExpression != nil {
 		selectOpt = types.SelectSpecificAttributes
 	}
-	builder := newExpressionBuilder(q.operator, q.negate, q.conditions)
+	builder := newExpression(q.operator, q.negate, q.conditions)
 	return &dynamodb.QueryInput{
 		TableName:                 &q.table,
 		ConsistentRead:            &q.isConsistent,
-		ExpressionAttributeNames:  builder.expressionNamesBuf,
-		ExpressionAttributeValues: builder.expressionValuesBuf,
-		FilterExpression:          builder.expressionFilter,
+		ExpressionAttributeNames:  builder.Names,
+		ExpressionAttributeValues: builder.Values,
+		FilterExpression:          builder.FilterExpression,
 		IndexName:                 q.index,
-		KeyConditionExpression:    builder.expressionKey,
+		KeyConditionExpression:    builder.KeyExpression,
 		Limit:                     &q.limit,
 		ProjectionExpression:      q.projectedFieldsExpression,
 		ReturnConsumedCapacity:    q.returnMetrics,
@@ -174,10 +174,12 @@ func (q *QueryBuilder) ExecQuery(ctx context.Context, c *dynamodb.Client) (Query
 			break
 		}
 		itemsBuf = append(itemsBuf, out.Items...)
-		nextPage = out.LastEvaluatedKey
 		count += out.Count
 		if out.ConsumedCapacity != nil {
 			consumedCapacityBuf = append(consumedCapacityBuf, *out.ConsumedCapacity)
+		}
+		if len(itemsBuf) < int(q.limit) {
+			nextPage = out.LastEvaluatedKey
 		}
 		if nextPage == nil {
 			break
