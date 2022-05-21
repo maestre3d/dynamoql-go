@@ -3,15 +3,17 @@ package dynamoql
 import (
 	"bytes"
 	"encoding/base64"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 const (
-	pageTokenKeySeparator  = '&'
-	pageTokenAttrSeparator = '='
-	pageTokenTypeSeparator = '|'
+	pageTokenSeparator    = '~'
+	pageTokenKeySeparator = '&'
+
+	pageTokenAttrTypeString = 'S'
+	pageTokenAttrTypeNumber = 'N'
+	pageTokenAttrTypeBinary = 'B'
 )
 
 // PageToken is a DynamoDB Last Evaluate Key(s) from Query and Scan APIs. This is a base64-based custom type used
@@ -35,8 +37,30 @@ func NewPageTokenString(rawStr string) PageToken {
 	return t
 }
 
+// NewPageToken converts the given base64-coded string into a PageToken.
+func NewPageToken(rawStr string) (PageToken, error) {
+	t := PageToken{}
+	if err := t.Decode(rawStr); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
 func (t PageToken) toBinary() []byte {
-	buffer := new(bytes.Buffer)
+	// Page Token format:
+	//
+	// Partition Key only:
+	//
+	// Attr_Type~Attr_name~Attr_val
+	//
+	// Partition Key and Sort Key (Composite Key):
+	//
+	// Attr_Type~Attr_name~Attr_val&Attr_Type~Attr_name~Attr_val
+	//
+	// Or
+	//
+	// Key_0&Key_1
+	buffer := bytes.NewBuffer(nil)
 	// Note: Might require to use a LinkedHashMap to preserve insertion-order.
 	count := 0
 	for k := range t {
@@ -46,25 +70,25 @@ func (t PageToken) toBinary() []byte {
 		}
 		switch t[k].(type) {
 		case *types.AttributeValueMemberS:
-			attr := t[k].(*types.AttributeValueMemberS)
-			buffer.WriteByte('S')
-			buffer.WriteByte(pageTokenTypeSeparator)
+			buffer.WriteByte(pageTokenAttrTypeString)
+			buffer.WriteByte(pageTokenSeparator)
 			_, _ = buffer.WriteString(k)
-			buffer.WriteByte(pageTokenAttrSeparator)
+			buffer.WriteByte(pageTokenSeparator)
+			attr := t[k].(*types.AttributeValueMemberS)
 			_, _ = buffer.WriteString(attr.Value)
 		case *types.AttributeValueMemberN:
-			attr := t[k].(*types.AttributeValueMemberN)
-			buffer.WriteByte('N')
-			buffer.WriteByte(pageTokenTypeSeparator)
+			buffer.WriteByte(pageTokenAttrTypeNumber)
+			buffer.WriteByte(pageTokenSeparator)
 			_, _ = buffer.WriteString(k)
-			buffer.WriteByte(pageTokenAttrSeparator)
+			buffer.WriteByte(pageTokenSeparator)
+			attr := t[k].(*types.AttributeValueMemberN)
 			_, _ = buffer.WriteString(attr.Value)
 		case *types.AttributeValueMemberB:
-			attr := t[k].(*types.AttributeValueMemberB)
-			buffer.WriteByte('B')
-			buffer.WriteByte(pageTokenTypeSeparator)
+			buffer.WriteByte(pageTokenAttrTypeBinary)
+			buffer.WriteByte(pageTokenSeparator)
 			_, _ = buffer.WriteString(k)
-			buffer.WriteByte(pageTokenAttrSeparator)
+			buffer.WriteByte(pageTokenSeparator)
+			attr := t[k].(*types.AttributeValueMemberB)
 			buffer.Write(attr.Value)
 		}
 		if count < len(t)-1 {
@@ -75,30 +99,77 @@ func (t PageToken) toBinary() []byte {
 	return buffer.Bytes()
 }
 
+func (t PageToken) append(attrType byte, key string, val []byte) {
+	switch attrType {
+	case pageTokenAttrTypeString:
+		t[key] = &types.AttributeValueMemberS{
+			Value: string(val),
+		}
+	case pageTokenAttrTypeNumber:
+		t[key] = &types.AttributeValueMemberN{
+			Value: string(val),
+		}
+	case pageTokenAttrTypeBinary:
+		t[key] = &types.AttributeValueMemberB{
+			Value: val,
+		}
+	}
+}
+
 func (t PageToken) fromBinary(raw []byte) error {
-	keys := strings.SplitN(string(raw), string(pageTokenKeySeparator), 2)
-	for i := range keys {
-		kv := strings.SplitN(keys[i], string(pageTokenAttrSeparator), 2)
-		if len(kv) != 2 {
+	// Page Token format:
+	//
+	// Partition Key only:
+	//
+	// Attr_Type~Attr_name~Attr_val
+	//
+	// Partition Key and Sort Key (Composite Key):
+	//
+	// Attr_Type~Attr_name~Attr_val&Attr_Type~Attr_name~Attr_val
+	//
+	// Or
+	//
+	// Key_0&Key_1
+	if len(raw) < 2 {
+		return nil
+	}
+
+	var attrType byte
+	isType := true
+	totalSep := 0
+	queue := bytes.NewBuffer(nil)
+	name := ""
+	var val []byte
+charLoop:
+	for i := range raw {
+		if len(t) == 2 {
+			break
+		}
+		if isType {
+			attrType = raw[i]
+			isType = false
 			continue
 		}
-		typeAndKey := strings.SplitN(kv[0], string(pageTokenTypeSeparator), 2)
-		if len(typeAndKey) != 2 {
-			continue
+		switch raw[i] {
+		case pageTokenKeySeparator:
+			val = queue.Bytes()
+			isType = true
+			queue.Reset()
+			t.append(attrType, name, val)
+			continue charLoop
+		case pageTokenSeparator:
+			totalSep++
+			if totalSep%2 == 0 {
+				name = queue.String()
+				queue.Reset()
+			}
+			continue charLoop
 		}
-		switch typeAndKey[0] {
-		case "S":
-			t[typeAndKey[1]] = &types.AttributeValueMemberS{
-				Value: kv[1],
-			}
-		case "N":
-			t[typeAndKey[1]] = &types.AttributeValueMemberN{
-				Value: kv[1],
-			}
-		case "B":
-			t[typeAndKey[1]] = &types.AttributeValueMemberB{
-				Value: []byte(kv[1]),
-			}
+		queue.WriteByte(raw[i])
+		if i == len(raw)-1 {
+			val = queue.Bytes()
+			queue.Reset()
+			t.append(attrType, name, val)
 		}
 	}
 	return nil

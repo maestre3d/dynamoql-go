@@ -27,7 +27,7 @@ func TestPageToken_Encode(t *testing.T) {
 					Value: "123-abc",
 				},
 			},
-			Exp: "U3xhdXRob3JfaWQ9MTIzLWFiYw==",
+			Exp: "U35hdXRob3JfaWR-MTIzLWFiYw==",
 		},
 		{
 			Name: "Valid Partition Key only Binary",
@@ -36,7 +36,7 @@ func TestPageToken_Encode(t *testing.T) {
 					Value: []byte("123-abc"),
 				},
 			},
-			Exp: "QnxhdXRob3JfaWQ9MTIzLWFiYw==",
+			Exp: "Qn5hdXRob3JfaWR-MTIzLWFiYw==",
 		},
 		{
 			Name: "Valid Partition Key only Number",
@@ -45,7 +45,7 @@ func TestPageToken_Encode(t *testing.T) {
 					Value: "123",
 				},
 			},
-			Exp: "Tnx0aW1lc3RhbXBfdW5peD0xMjM=",
+			Exp: "Tn50aW1lc3RhbXBfdW5peH4xMjM=",
 		},
 		{
 			Name: "Valid Composite Key",
@@ -57,7 +57,7 @@ func TestPageToken_Encode(t *testing.T) {
 					Value: "123",
 				},
 			},
-			Exp: "U3x1c2VyX2lkPTEyMy1hYmMmTnx0aW1lc3RhbXBfdW5peD0xMjM=",
+			Exp: "U351c2VyX2lkfjEyMy1hYmMmTn50aW1lc3RhbXBfdW5peH4xMjM=",
 		},
 	}
 
@@ -83,20 +83,20 @@ func TestPageToken_Decode(t *testing.T) {
 		{
 			Name: "Valid Partition Key only String",
 			Token: dynamoql.PageToken{
-				"user_id": &types.AttributeValueMemberS{
+				"author_id": &types.AttributeValueMemberS{
 					Value: "123-abc",
 				},
 			},
-			Exp: "U3x1c2VyX2lkPTEyMy1hYmM=",
+			Exp: "U35hdXRob3JfaWR-MTIzLWFiYw==",
 		},
 		{
 			Name: "Valid Partition Key only Binary",
 			Token: dynamoql.PageToken{
-				"user_id": &types.AttributeValueMemberB{
+				"author_id": &types.AttributeValueMemberB{
 					Value: []byte("123-abc"),
 				},
 			},
-			Exp: "Qnx1c2VyX2lkPTEyMy1hYmM=",
+			Exp: "Qn5hdXRob3JfaWR-MTIzLWFiYw==",
 		},
 		{
 			Name: "Valid Partition Key only Number",
@@ -105,7 +105,7 @@ func TestPageToken_Decode(t *testing.T) {
 					Value: "123",
 				},
 			},
-			Exp: "Tnx0aW1lc3RhbXBfdW5peD0xMjM=",
+			Exp: "Tn50aW1lc3RhbXBfdW5peH4xMjM=",
 		},
 		{
 			Name: "Valid Composite Key",
@@ -117,7 +117,7 @@ func TestPageToken_Decode(t *testing.T) {
 					Value: "123",
 				},
 			},
-			Exp: "U3x1c2VyX2lkPTEyMy1hYmMmTnx0aW1lc3RhbXBfdW5peD0xMjM=",
+			Exp: "U351c2VyX2lkfjEyMy1hYmMmTn50aW1lc3RhbXBfdW5peH4xMjM=",
 		},
 	}
 
