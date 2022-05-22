@@ -16,6 +16,8 @@ var DefaultTimeFormat = time.RFC3339
 var ErrCannotCastAttribute = errors.New("dynamoql: Cannot cast attribute")
 
 // FormatAttribute converts a Go primitive type into a DynamoDB type.
+//
+// Returns nil if unknown value is received.
 func FormatAttribute(v interface{}) types.AttributeValue {
 	switch v.(type) {
 	case string:

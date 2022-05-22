@@ -29,6 +29,7 @@ const (
 
 	And LogicalOperator = "AND"
 	Or  LogicalOperator = "OR"
+	not LogicalOperator = "NOT"
 
 	Ascend  Ordering = "ASC"
 	Descend Ordering = "DESC"

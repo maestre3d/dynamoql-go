@@ -20,7 +20,9 @@ func buildExpressionValuesRaw(c []Condition) map[string]types.AttributeValue {
 	}
 	buf := make(map[string]types.AttributeValue, len(c))
 	for i := range c {
-		buf[c[i].Field] = FormatAttribute(c[i].Value)
+		if val := FormatAttribute(c[i].Value); val != nil {
+			buf[c[i].Field] = val
+		}
 	}
 	return buf
 }
@@ -74,6 +76,9 @@ func (b *expressionBuilder) splitConditions() {
 	}
 }
 
+// buildNames maps field names from an Amazon DynamoDB table to a custom token used by expressions.
+//
+// Default format is key => #key.
 func (b *expressionBuilder) buildNames() {
 	if b.conditions == nil || len(b.conditions) == 0 {
 		return
@@ -85,6 +90,11 @@ func (b *expressionBuilder) buildNames() {
 	}
 }
 
+// buildValues maps values of an Amazon DynamoDB expression to a custom token.
+//
+// Default format is key => :key
+//
+// If more than one key, then => :key, :key0, :key1, :keyN ...
 func (b *expressionBuilder) buildValues() {
 	if b.conditions == nil || len(b.conditions) == 0 {
 		return
@@ -110,8 +120,12 @@ type expressionBuilderFuncArgs struct {
 	totalExtraVal               int
 }
 
+// expressionBuilderFunc based on the given arguments, it will build an Amazon DynamoDB expression (key or filter).
+//
+// This function writes bytes into the given strings.Builder buffer.
 type expressionBuilderFunc func(buf *strings.Builder, args expressionBuilderFuncArgs)
 
+// newExpressionBuilderFunc retrieves an expression builder function based on the given ConditionalOperator.
 func newExpressionBuilderFunc(o ConditionalOperator) expressionBuilderFunc {
 	switch o {
 	case Between:
@@ -211,6 +225,13 @@ func buildDefaultExpression(buf *strings.Builder, args expressionBuilderFuncArgs
 	buf.WriteString(args.field)
 }
 
+// calculateExpressionFuncCap calculates the required capacity for strings.Builder's internal bytes buffer.
+//
+// This will drastically reduce malloc and Bytes/op as the buffer won't require to be grown, hence potentially
+// duplicating buffer's capacity for each grow is avoided.
+//
+// strings.Builder's Grow() method uses the formula:
+// 2(len(buffer)) + n, where n is the requested growing factor, as capacity of the newly allocated buffer.
 func calculateExpressionFuncCap(o ConditionalOperator, args expressionBuilderFuncArgs) int {
 	totalExtraChars := 0
 	switch o {
@@ -299,11 +320,13 @@ func buildExpression(operator LogicalOperator, negate bool, c []Condition) *stri
 	buf := strings.Builder{}
 	buf.Grow(calculateExpressionBufferCap(operator, negate, c))
 	if negate {
-		buf.WriteString("NOT (")
+		buf.WriteString(string(not))
+		buf.WriteString(" (")
 	}
 	for i := range c {
 		if !c[i].IsKey && c[i].Negate {
-			buf.WriteString("NOT (")
+			buf.WriteString(string(not))
+			buf.WriteString(" (")
 		}
 		newExpressionBuilderFunc(c[i].Operator)(&buf, expressionBuilderFuncArgs{
 			field:             c[i].Field,

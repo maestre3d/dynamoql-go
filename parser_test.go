@@ -10,6 +10,8 @@ import (
 )
 
 func TestFormatAttribute(t *testing.T) {
+	type arbitrary struct{}
+
 	tests := []struct {
 		Name string
 		In   interface{}
@@ -18,6 +20,11 @@ func TestFormatAttribute(t *testing.T) {
 		{
 			Name: "Empty",
 			In:   nil,
+			Exp:  nil,
+		},
+		{
+			Name: "Arbitrary type",
+			In:   arbitrary{},
 			Exp:  nil,
 		},
 		{
