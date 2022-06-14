@@ -8,16 +8,14 @@ import (
 
 type QueryPaginator struct {
 	client       *dynamodb.Client
-	query        *dynamodb.QueryInput
+	query        dynamodb.QueryInput
 	lastEvalKey  PageToken
 	scannedPages uint32
 	itemCount    int32
 }
 
-func NewQueryPaginator(pageSize int32, c *dynamodb.Client, q *dynamodb.QueryInput) *QueryPaginator {
-	if q == nil {
-		return nil
-	} else if pageSize > 0 {
+func NewQueryPaginator(pageSize int32, c *dynamodb.Client, q dynamodb.QueryInput) *QueryPaginator {
+	if pageSize > 0 {
 		q.Limit = &pageSize
 	}
 	return &QueryPaginator{
@@ -44,7 +42,7 @@ func (p QueryPaginator) Count() int32 {
 
 func (p *QueryPaginator) GetPage(ctx context.Context) (*dynamodb.QueryOutput, error) {
 	p.query.ExclusiveStartKey = p.lastEvalKey
-	out, err := p.client.Query(ctx, p.query)
+	out, err := p.client.Query(ctx, &p.query)
 	if err != nil {
 		return nil, err
 	}

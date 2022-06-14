@@ -48,10 +48,7 @@ type QueryReader struct {
 
 // NewQueryReader allocates a QueryReader with required internal components. Returns nil if a nil
 // dynamodb.QueryInput is passed.
-func NewQueryReader(chunkSize int32, c *dynamodb.Client, q *dynamodb.QueryInput) *QueryReader {
-	if q == nil {
-		return nil
-	}
+func NewQueryReader(chunkSize int32, c *dynamodb.Client, q dynamodb.QueryInput) *QueryReader {
 	return &QueryReader{
 		paginator: NewQueryPaginator(chunkSize, c, q),
 		buf:       NewItemBuffer(int(chunkSize)),

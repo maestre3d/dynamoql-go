@@ -38,19 +38,19 @@ func (s *queryReaderTestSuite) TearDownSuite() {}
 func (s *queryReaderTestSuite) TestQueryReader_GetItem() {
 	tests := []struct {
 		name     string
-		query    *dynamodb.QueryInput
+		query    dynamodb.QueryInput
 		pageSize int32
 		expItems int
 		wantErr  bool
 	}{
 		{
-			name:     "Nil query",
-			query:    nil,
+			name:     "Empty query",
+			query:    dynamodb.QueryInput{},
 			pageSize: 0,
 		},
 		{
 			name: "Invalid query",
-			query: dynamoql.Select().From("InvoiceAndBills").Where(dynamoql.Condition{
+			query: dynamoql.NewQueryInput(dynamoql.Select().From("InvoiceAndBills").Where(dynamoql.Condition{
 				IsKey:    true,
 				Operator: dynamoql.Equals,
 				Field:    "PK",
@@ -60,14 +60,14 @@ func (s *queryReaderTestSuite) TestQueryReader_GetItem() {
 				Operator: dynamoql.Equals,
 				Field:    "SK",
 				Value:    dynamoql.NewCompositeKey("B", ""),
-			}).GetQueryInput(),
+			})),
 			pageSize: 0,
 			expItems: 0,
 			wantErr:  true, // AWS SDK malformed query error
 		},
 		{
 			name: "Valid empty result",
-			query: dynamoql.Select().From("InvoiceAndBills").Where(dynamoql.Condition{
+			query: dynamoql.NewQueryInput(dynamoql.Select().From("InvoiceAndBills").Where(dynamoql.Condition{
 				IsKey:    true,
 				Operator: dynamoql.Equals,
 				Field:    "PK",
@@ -77,14 +77,14 @@ func (s *queryReaderTestSuite) TestQueryReader_GetItem() {
 				Operator: dynamoql.BeginsWith,
 				Field:    "SK",
 				Value:    dynamoql.NewCompositeKey("B", ""),
-			}).GetQueryInput(),
+			})),
 			pageSize: 100,
 			expItems: 0,
 			wantErr:  true, // Reader has reached end of file (ErrReaderEOF), no items found
 		},
 		{
 			name: "Valid",
-			query: dynamoql.Select().From("InvoiceAndBills").Where(dynamoql.Condition{
+			query: dynamoql.NewQueryInput(dynamoql.Select().From("InvoiceAndBills").Where(dynamoql.Condition{
 				IsKey:    true,
 				Operator: dynamoql.Equals,
 				Field:    "PK",
@@ -94,7 +94,7 @@ func (s *queryReaderTestSuite) TestQueryReader_GetItem() {
 				Operator: dynamoql.BeginsWith,
 				Field:    "SK",
 				Value:    dynamoql.NewCompositeKey("B", ""),
-			}).GetQueryInput(),
+			})),
 			pageSize: 100,
 			expItems: 4,
 		},
@@ -102,10 +102,6 @@ func (s *queryReaderTestSuite) TestQueryReader_GetItem() {
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
 			r := dynamoql.NewQueryReader(tt.pageSize, s.client, tt.query)
-			if tt.query == nil {
-				assert.Nil(t, r)
-				return
-			}
 
 			ctx := context.Background()
 			bills := make([]Bill, 0, tt.expItems)

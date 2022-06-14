@@ -38,20 +38,20 @@ func (s *queryPaginatorTestSuite) TearDownSuite() {}
 func (s *queryPaginatorTestSuite) TestQueryPaginator_GetPage() {
 	tests := []struct {
 		name         string
-		query        *dynamodb.QueryInput
+		query        dynamodb.QueryInput
 		pageSize     int32
 		scannedPages uint32
 		expItems     int32
 		wantErr      bool
 	}{
 		{
-			name:     "Nil query",
-			query:    nil,
+			name:     "Empty query",
+			query:    dynamodb.QueryInput{},
 			pageSize: 0,
 		},
 		{
 			name: "Invalid query",
-			query: dynamoql.Select().From("InvoiceAndBills").Where(dynamoql.Condition{
+			query: dynamoql.NewQueryInput(dynamoql.Select().From("InvoiceAndBills").Where(dynamoql.Condition{
 				IsKey:    true,
 				Operator: dynamoql.Equals,
 				Field:    "PK",
@@ -61,13 +61,13 @@ func (s *queryPaginatorTestSuite) TestQueryPaginator_GetPage() {
 				Operator: dynamoql.Equals,
 				Field:    "SK",
 				Value:    dynamoql.NewCompositeKey("B", ""),
-			}).GetQueryInput(),
+			})),
 			pageSize: 0,
 			wantErr:  true,
 		},
 		{
 			name: "Valid",
-			query: dynamoql.Select().From("InvoiceAndBills").Where(dynamoql.Condition{
+			query: dynamoql.NewQueryInput(dynamoql.Select().From("InvoiceAndBills").Where(dynamoql.Condition{
 				IsKey:    true,
 				Operator: dynamoql.Equals,
 				Field:    "PK",
@@ -77,7 +77,7 @@ func (s *queryPaginatorTestSuite) TestQueryPaginator_GetPage() {
 				Operator: dynamoql.BeginsWith,
 				Field:    "SK",
 				Value:    dynamoql.NewCompositeKey("B", ""),
-			}).GetQueryInput(),
+			})),
 			pageSize:     100,
 			scannedPages: 1,
 			expItems:     4,
@@ -86,10 +86,6 @@ func (s *queryPaginatorTestSuite) TestQueryPaginator_GetPage() {
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
 			p := dynamoql.NewQueryPaginator(tt.pageSize, s.client, tt.query)
-			if tt.query == nil {
-				assert.Nil(t, p)
-				return
-			}
 			ctx := context.Background()
 			itemBuf := dynamoql.NewItemBuffer(int(tt.expItems))
 			for p.Next() {
