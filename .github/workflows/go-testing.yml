@@ -3,12 +3,10 @@ name: Go Testing
 on:
   push:
     branches: [ master, 'feature/**' ]
-    paths:
-      - '**.go'
+    paths: ['**.go', 'testdata/**.py']
   pull_request:
     branches: [ master ]
-    paths:
-      - '**.go'
+    paths: ['**.go', 'testdata/**.py']
 
 jobs:
   unit-test:
