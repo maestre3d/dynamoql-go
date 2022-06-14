@@ -3,7 +3,7 @@ import boto3
 import sys
 
 def create_table(tableName):
-    dynamodb = boto3.resource('dynamodb', endpoint_url='http://localhost:8000')
+    dynamodb = boto3.resource('dynamodb', endpoint_url='http://localhost:8000', region_name='us-east-1')
     try:
         dynamodb.create_table(
             TableName=tableName,

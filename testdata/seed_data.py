@@ -6,7 +6,7 @@ import sys
 
 
 def import_csv(tableName, fileName):
-    dynamodb = boto3.resource('dynamodb', endpoint_url='http://localhost:8000')
+    dynamodb = boto3.resource('dynamodb', endpoint_url='http://localhost:8000', region_name='us-east-1')
     dynamodb_table = dynamodb.Table(tableName)
     count = 0
 
