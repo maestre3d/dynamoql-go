@@ -19,3 +19,6 @@ generate-coverage:
 
 generate-integration-coverage:
 	go test ./... -tags=integration -coverprofile coverage.out . && go tool cover -html=coverage.out
+
+publish-pkg:
+	./publish-goproxy-pkg.sh -v $(version)
