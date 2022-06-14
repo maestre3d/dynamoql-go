@@ -27,6 +27,6 @@ then
   MAJOR_VERSION="/$VERSION_PREFIX"
 fi
 
-GO_PROXY_URL=proxy.golang.org/github.com/maestre3d/dynamoql-go"$MAJOR_VERSION"/@v/"$VERSION_TAG".info
+GO_PROXY_URL=https://proxy.golang.org/github.com/maestre3d/dynamoql-go"$MAJOR_VERSION"/@v/"$VERSION_TAG".info
 echo "forcing package publishing using URL: $GO_PROXY_URL"
 curl "$GO_PROXY_URL"
