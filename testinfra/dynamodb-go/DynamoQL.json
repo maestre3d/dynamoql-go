@@ -1,0 +1,307 @@
+{
+  "ModelName": "DynamoQL",
+  "ModelMetadata": {
+    "Author": "Alonso Ruiz",
+    "DateCreated": "May 17, 2022, 10:36 PM",
+    "DateLastModified": "Jun 08, 2022, 12:47 AM",
+    "Description": "",
+    "AWSService": "Amazon DynamoDB",
+    "Version": "3.0"
+  },
+  "DataModel": [
+    {
+      "TableName": "Graph",
+      "KeyAttributes": {
+        "PartitionKey": {
+          "AttributeName": "partition_key",
+          "AttributeType": "S"
+        },
+        "SortKey": {
+          "AttributeName": "sort_key",
+          "AttributeType": "S"
+        }
+      },
+      "NonKeyAttributes": [
+        {
+          "AttributeName": "display_name",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "picture",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "added_at",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "bill_amount",
+          "AttributeType": "N"
+        },
+        {
+          "AttributeName": "bill_balance",
+          "AttributeType": "N"
+        },
+        {
+          "AttributeName": "invoice_balance",
+          "AttributeType": "N"
+        },
+        {
+          "AttributeName": "invoice_due_date",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "invoice_status",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "facility_id",
+          "AttributeType": "S"
+        }
+      ],
+      "TableFacets": [
+        {
+          "FacetName": "Classroom",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "facility_id",
+            "SortKeyAlias": "classroom_id"
+          },
+          "TableData": [
+            {
+              "partition_key": {
+                "S": "FACILITY#123"
+              },
+              "sort_key": {
+                "S": "CLASSROOM#abc"
+              },
+              "display_name": {
+                "S": "Computing"
+              }
+            },
+            {
+              "partition_key": {
+                "S": "FACILITY#456"
+              },
+              "sort_key": {
+                "S": "CLASSROOM#xyz"
+              },
+              "display_name": {
+                "S": "Lab"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "display_name"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Student",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "student_id",
+            "SortKeyAlias": "student_id"
+          },
+          "TableData": [
+            {
+              "partition_key": {
+                "S": "STUDENT#123-abc"
+              },
+              "sort_key": {
+                "S": "STUDENT#123-abc"
+              },
+              "display_name": {
+                "S": "Bruno Gramer"
+              },
+              "picture": {
+                "S": "https://scholar.static.neutrinocorp.org/students/123-abc.jpeg"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "display_name",
+            "picture"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "ClassroomStudent",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "classroom_id",
+            "SortKeyAlias": "student_id"
+          },
+          "TableData": [
+            {
+              "partition_key": {
+                "S": "CLASSROOM#abc"
+              },
+              "sort_key": {
+                "S": "STUDENT#123-abc"
+              },
+              "added_at": {
+                "S": "2022-06-08T05:06:42Z"
+              },
+              "facility_id": {
+                "S": "FACILITY#123"
+              }
+            },
+            {
+              "partition_key": {
+                "S": "CLASSROOM#xyz"
+              },
+              "sort_key": {
+                "S": "STUDENT#123-abc"
+              },
+              "added_at": {
+                "S": "2022-06-08T05:06:42Z"
+              },
+              "facility_id": {
+                "S": "FACILITY#456"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "added_at",
+            "facility_id"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Invoice",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "student_id",
+            "SortKeyAlias": "invoice_id"
+          },
+          "TableData": [
+            {
+              "partition_key": {
+                "S": "STUDENT#123-abc"
+              },
+              "sort_key": {
+                "S": "INVOICE#1420"
+              },
+              "added_at": {
+                "S": "\t 2022-06-08T05:06:42Z"
+              },
+              "invoice_balance": {
+                "N": "28458338.00"
+              },
+              "invoice_due_date": {
+                "S": "10/31/23"
+              },
+              "invoice_status": {
+                "S": "Cancelled"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "added_at",
+            "invoice_balance",
+            "invoice_due_date",
+            "invoice_status"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Bill",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "invoice_id",
+            "SortKeyAlias": "bill_id"
+          },
+          "TableData": [
+            {
+              "partition_key": {
+                "S": "INVOICE#1420"
+              },
+              "sort_key": {
+                "S": "BILL#2485"
+              },
+              "bill_amount": {
+                "N": "135986.00"
+              },
+              "bill_balance": {
+                "N": "28322352.00"
+              }
+            },
+            {
+              "partition_key": {
+                "S": "INVOICE#1420"
+              },
+              "sort_key": {
+                "S": "BILL#2823"
+              },
+              "bill_amount": {
+                "N": "592769.00"
+              },
+              "bill_balance": {
+                "N": "8382270"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "bill_amount",
+            "bill_balance"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        }
+      ],
+      "GlobalSecondaryIndexes": [
+        {
+          "IndexName": "GsiOverload",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "sort_key",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "partition_key",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        }
+      ],
+      "DataAccess": {
+        "MySql": {}
+      },
+      "BillingMode": "PROVISIONED",
+      "ProvisionedCapacitySettings": {
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        },
+        "AutoScalingRead": {
+          "ScalableTargetRequest": {
+            "MinCapacity": 1,
+            "MaxCapacity": 10,
+            "ServiceRole": "AWSServiceRoleForApplicationAutoScaling_DynamoDBTable"
+          },
+          "ScalingPolicyConfiguration": {
+            "TargetValue": 70
+          }
+        },
+        "AutoScalingWrite": {
+          "ScalableTargetRequest": {
+            "MinCapacity": 1,
+            "MaxCapacity": 10,
+            "ServiceRole": "AWSServiceRoleForApplicationAutoScaling_DynamoDBTable"
+          },
+          "ScalingPolicyConfiguration": {
+            "TargetValue": 70
+          }
+        }
+      }
+    }
+  ]
+}
