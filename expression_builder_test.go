@@ -448,7 +448,7 @@ func BenchmarkBuildExpression(b *testing.B) {
 			Operator:          In,
 			SecondaryOperator: "",
 			Field:             "foo",
-			Value:             nil,
+			Value:             "bar",
 			ExtraValues:       []interface{}{"foo", "bar", "baz", "bingo"},
 		},
 		{
@@ -457,7 +457,7 @@ func BenchmarkBuildExpression(b *testing.B) {
 			Operator:          In,
 			SecondaryOperator: "",
 			Field:             "foo",
-			Value:             nil,
+			Value:             "bar",
 			ExtraValues:       []interface{}{"foo", "bar", "baz", "bingo"},
 		},
 		{
@@ -466,7 +466,7 @@ func BenchmarkBuildExpression(b *testing.B) {
 			Operator:          Equals,
 			SecondaryOperator: "",
 			Field:             "foo",
-			Value:             nil,
+			Value:             "bar",
 			ExtraValues:       nil,
 		},
 		{
@@ -475,12 +475,12 @@ func BenchmarkBuildExpression(b *testing.B) {
 			Operator:          Contains,
 			SecondaryOperator: "",
 			Field:             "foo",
-			Value:             nil,
+			Value:             "abc",
 			ExtraValues:       nil,
 		},
 	}
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		b.ReportAllocs()
 		buildExpression(And, true, conditions)
 	}
 }

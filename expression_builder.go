@@ -246,8 +246,6 @@ func calculateExpressionFuncCap(o ConditionalOperator, args expressionBuilderFun
 		requiredCap := totalExtraChars + len(expressionNameSeparator) + len(expressionValueSeparator) +
 			len(In) + (len(args.field) * 2)
 		if args.totalExtraVal > 0 {
-			// buf.Grow uses the formula: 2(len(buffer)) + n to calculate new buffer capacity,
-			// we no longer need to calculate exactly the bytes written.
 			totalExtraChars = 2
 			if args.totalExtraVal > 10 {
 				totalExtraChars++
