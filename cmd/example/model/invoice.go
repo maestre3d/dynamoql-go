@@ -9,14 +9,14 @@ import (
 )
 
 type Invoice struct {
-	StudentID string
-	InvoiceID string
-	AddedAt   time.Time
-	Balance   float64
-	DueDate   string
-	Status    string
+	StudentID string    `json:"student_id"`
+	InvoiceID string    `json:"invoice_id"`
+	AddedAt   time.Time `json:"added_at"`
+	Balance   float64   `json:"balance"`
+	DueDate   string    `json:"due_date"`
+	Status    string    `json:"status"`
 
-	Student Student
+	Student *Student `json:"student,omitempty"`
 }
 
 var _ dynamoql.NodeSchema = &Invoice{}

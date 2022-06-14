@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"example/global"
 	"example/model"
 	"example/repository"
 	"log"
+	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -22,6 +27,63 @@ const (
 func main() {
 	ctx := context.Background()
 	client := newDynamoClient()
+
+	_, err := client.CreateTable(ctx, &dynamodb.CreateTableInput{
+		AttributeDefinitions: []types.AttributeDefinition{
+			{
+				AttributeName: aws.String("partition_key"),
+				AttributeType: "S",
+			},
+			{
+				AttributeName: aws.String("sort_key"),
+				AttributeType: "S",
+			},
+		},
+		KeySchema: []types.KeySchemaElement{
+			{
+				AttributeName: aws.String("partition_key"),
+				KeyType:       "HASH",
+			},
+			{
+				AttributeName: aws.String("sort_key"),
+				KeyType:       "RANGE",
+			},
+		},
+		TableName:   aws.String(global.TableName),
+		BillingMode: "",
+		GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
+			{
+				IndexName: aws.String(global.GsiName),
+				KeySchema: []types.KeySchemaElement{
+					{
+						AttributeName: aws.String("sort_key"),
+						KeyType:       "HASH",
+					},
+					{
+						AttributeName: aws.String("partition_key"),
+						KeyType:       "RANGE",
+					},
+				},
+				Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+				ProvisionedThroughput: &types.ProvisionedThroughput{
+					ReadCapacityUnits:  aws.Int64(1),
+					WriteCapacityUnits: aws.Int64(1),
+				},
+			},
+		},
+		LocalSecondaryIndexes: nil,
+		ProvisionedThroughput: &types.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(1),
+			WriteCapacityUnits: aws.Int64(1),
+		},
+		SSESpecification:    nil,
+		StreamSpecification: nil,
+		TableClass:          "",
+		Tags:                nil,
+	})
+	if err != nil && !strings.Contains(err.Error(), "ResourceInUseException") {
+		panic(err)
+	}
 
 	_ = repository.SaveClassroom(ctx, client, model.Classroom{
 		FacilityID:  "123",
@@ -70,11 +132,12 @@ func main() {
 	student := model.Student{
 		StudentID: "123-abc",
 	}
-	if err := repository.GetStudentHydrate(ctx, client, &student); err != nil {
+	if err = repository.GetStudentHydrate(ctx, client, &student); err != nil {
 		panic(err)
 	}
 
-	log.Printf("%+v", student)
+	studentJSON, _ := json.Marshal(student)
+	log.Printf("%s", string(studentJSON))
 }
 
 func newDynamoClient() *dynamodb.Client {

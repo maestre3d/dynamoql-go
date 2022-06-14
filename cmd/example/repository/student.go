@@ -30,17 +30,6 @@ func GetStudent(ctx context.Context, c *dynamodb.Client, student *model.Student)
 	return student.UnmarshalDynamoDB(out.Item)
 }
 
-type Iterator func(map[string]types.AttributeValue) map[string]types.AttributeValue
-
-func hydrate(query []map[string]types.AttributeValue, iterator Iterator) {
-	for _, item := range query {
-		keys := iterator(item)
-		if keys == nil {
-			continue
-		}
-	}
-}
-
 func GetStudentHydrate(ctx context.Context, c *dynamodb.Client, student *model.Student) error {
 	// 1. Get relationships (Get all classrooms assigned to a student).
 	//
@@ -124,8 +113,10 @@ func GetStudentHydrate(ctx context.Context, c *dynamodb.Client, student *model.S
 
 	// 4. Unmarshal data, requires a way to determine which model is going to be decoded.
 	for _, item := range out.Responses[global.TableName] {
-		if err = student.UnmarshalDynamoDB(item); err == nil {
-			continue
+		if dynamoql.MustParseString(item[dynamoql.DefaultSchemaField]) == "Student" {
+			if err = student.UnmarshalDynamoDB(item); err == nil {
+				continue
+			}
 		}
 		classroom := model.Classroom{}
 		err = classroom.UnmarshalDynamoDB(item)

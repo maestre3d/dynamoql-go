@@ -10,12 +10,12 @@ import (
 )
 
 type Student struct {
-	StudentID   string
-	DisplayName string
-	Picture     string
+	StudentID   string `json:"student_id"`
+	DisplayName string `json:"display_name"`
+	Picture     string `json:"picture"`
 
-	Classrooms []Classroom // populated manually
-	Invoices   []Invoice
+	Classrooms []Classroom `json:"classrooms,omitempty"` // populated manually
+	Invoices   []Invoice   `json:"invoices,omitempty"`
 }
 
 var _ dynamoql.NodeSchema = &Student{}

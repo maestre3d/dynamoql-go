@@ -8,11 +8,11 @@ import (
 )
 
 type Classroom struct {
-	FacilityID  string
-	ClassroomID string
-	DisplayName string
+	FacilityID  string `json:"facility_id"`
+	ClassroomID string `json:"classroom_id"`
+	DisplayName string `json:"display_name"`
 
-	Students []Student // populated manually
+	Students []Student `json:"students,omitempty"` // populated manually
 }
 
 var _ dynamoql.NodeSchema = &Classroom{}
