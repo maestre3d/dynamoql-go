@@ -34,6 +34,7 @@ type QueryBuilder struct {
 	returnMetrics             types.ReturnConsumedCapacity
 	conditions                []Condition
 	pageToken                 PageToken
+	parallelDegree            int32
 }
 
 func NewQueryBuilder() *QueryBuilder {
@@ -112,29 +113,13 @@ func (q *QueryBuilder) Metrics(v types.ReturnConsumedCapacity) *QueryBuilder {
 	return q
 }
 
-func (q *QueryBuilder) ExecGet(ctx context.Context, c *dynamodb.Client) (dynamodb.GetItemOutput, error) {
-	out, err := c.GetItem(ctx, &dynamodb.GetItemInput{
-		Key:                      buildExpressionValuesRaw(q.conditions),
-		TableName:                &q.table,
-		ConsistentRead:           &q.isConsistent,
-		ExpressionAttributeNames: nil,
-		ProjectionExpression:     q.projectedFieldsExpression,
-		ReturnConsumedCapacity:   q.returnMetrics,
-	})
-	if err != nil {
-		return dynamodb.GetItemOutput{}, err
-	}
-	return *out, nil
+// DegreeOfParallelism only for Scan operations.
+func (q *QueryBuilder) DegreeOfParallelism(d int32) *QueryBuilder {
+	q.parallelDegree = d
+	return q
 }
 
-type QueryResponse struct {
-	Items              []map[string]types.AttributeValue
-	NextPageToken      PageToken
-	Count              int32
-	ConsumptionMetrics []types.ConsumedCapacity
-}
-
-func (q *QueryBuilder) newQueryInput() *dynamodb.QueryInput {
+func (q *QueryBuilder) GetQueryInput() *dynamodb.QueryInput {
 	selectOpt := types.SelectAllAttributes
 	if q.projectedFieldsExpression != nil {
 		selectOpt = types.SelectSpecificAttributes
@@ -156,46 +141,35 @@ func (q *QueryBuilder) newQueryInput() *dynamodb.QueryInput {
 	}
 }
 
-func (q *QueryBuilder) ExecQuery(ctx context.Context, c *dynamodb.Client) (QueryResponse, error) {
-	in := q.newQueryInput()
-	// reduce overall buffer size by half to avoid unnecessary malloc if no further items are found.
-	// If all items found, golang internals will grow slice's cap by twice when hitting the half-divided capacity,
-	// reaching the original capacity required by the buffer.
-	itemsBuf := make([]map[string]types.AttributeValue, 0, int(q.limit)/2)
-	nextPage := q.pageToken
-	var count int32 = 0
-	consumedCapacityBuf := make([]types.ConsumedCapacity, 0)
-	for len(itemsBuf) < int(q.limit) {
-		in.ExclusiveStartKey = nextPage
-		out, err := c.Query(ctx, in)
-		if err != nil {
-			return QueryResponse{}, err
-		} else if out.Items == nil {
-			break
-		}
-		itemsBuf = append(itemsBuf, out.Items...)
-		count += out.Count
-		if out.ConsumedCapacity != nil {
-			consumedCapacityBuf = append(consumedCapacityBuf, *out.ConsumedCapacity)
-		}
-		if len(itemsBuf) < int(q.limit) {
-			nextPage = out.LastEvaluatedKey
-		}
-		if nextPage == nil {
-			break
-		}
-		in.Limit = aws.Int32(*in.Limit - int32(len(out.Items)))
+func (q *QueryBuilder) GetGetInput() *dynamodb.GetItemInput {
+	return &dynamodb.GetItemInput{
+		Key:                      buildExpressionValuesRaw(q.conditions),
+		TableName:                &q.table,
+		ConsistentRead:           &q.isConsistent,
+		ExpressionAttributeNames: nil,
+		ProjectionExpression:     q.projectedFieldsExpression,
+		ReturnConsumedCapacity:   q.returnMetrics,
 	}
-	return QueryResponse{
-		Items:              itemsBuf,
-		NextPageToken:      nextPage,
-		Count:              count,
-		ConsumptionMetrics: consumedCapacityBuf,
-	}, nil
 }
 
-func (q *QueryBuilder) ExecRawQuery(ctx context.Context, c *dynamodb.Client) (dynamodb.QueryOutput, error) {
-	out, err := c.Query(ctx, q.newQueryInput())
+func (q *QueryBuilder) GetQueryPaginator(c *dynamodb.Client) *QueryPaginator {
+	return NewQueryPaginator(q.limit, c, q.GetQueryInput())
+}
+
+func (q *QueryBuilder) GetQueryReader(c *dynamodb.Client) *QueryReader {
+	return NewQueryReader(q.limit, c, q.GetQueryInput())
+}
+
+func (q *QueryBuilder) ExecGet(ctx context.Context, c *dynamodb.Client) (dynamodb.GetItemOutput, error) {
+	out, err := c.GetItem(ctx, q.GetGetInput())
+	if err != nil {
+		return dynamodb.GetItemOutput{}, err
+	}
+	return *out, nil
+}
+
+func (q *QueryBuilder) ExecQuery(ctx context.Context, c *dynamodb.Client) (dynamodb.QueryOutput, error) {
+	out, err := c.Query(ctx, q.GetQueryInput())
 	if err != nil {
 		return dynamodb.QueryOutput{}, err
 	}
