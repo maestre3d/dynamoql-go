@@ -1,2 +1,2 @@
 # DynamoQL for Amazon DynamoDB
-A lightweight library for your Amazon DynanoDB needs.
+An ORM-like lightweight toolkit for Go applications interacting with Amazon DynamoDB.
