@@ -15,9 +15,11 @@ const (
 )
 
 var (
+	// GlobalDriver default Driver to be used by commit and rollback operations.
+	GlobalDriver = NoopDriverKey
 	// MaxTransactionStatements the maximum amount of statements per-transaction.
 	//
-	// It is very important to set this variable correctly as internal `Transaction Context` components
+	// It is very important to set this variable properly as internal `Transaction Context` components
 	// use it to pre-allocate memory (slice of statements of each transaction), increasing overall performance.
 	//
 	// Default is Amazon DynamoDB's limit (25 statements per-transaction).
@@ -28,37 +30,59 @@ var (
 	internalRegistry *sync.Map
 )
 
-// txContext a mapping of an id and its Driver. Driver is required to perform commit and rollback operations.
-type txContext struct {
-	id int
+// Context a mapping of an id and its Driver. Driver is required to perform commit and rollback operations.
+type Context struct {
+	ID int
 	// Using string instead Driver as this will decrease overall struct copies.
-	driver string
+	Driver string
 }
 
-// NewContext builds a context.Context with a transaction identifier and its driver from a parent context.
-func NewContext(ctx context.Context, driver string) context.Context {
-	return context.WithValue(ctx, ContextKey, txContext{
-		id:     rand.Int(),
-		driver: driver,
+// NewContext builds a context.Context with a transaction identifier from a parent context.
+// If given parent context is nil, returns nil.
+//
+// Finally, if given a context.Context with a Context already registered, this will override the entry.
+func NewContext(ctx context.Context) context.Context {
+	return NewContextWithDriver(ctx, GlobalDriver)
+}
+
+// NewContextWithDriver builds a context.Context with a transaction identifier and a scoped driver key from a
+// parent context. If given parent context is nil, returns nil.
+//
+// Finally, if given a context.Context with a Context already registered, this will override the entry.
+func NewContextWithDriver(ctx context.Context, driver string) context.Context {
+	if ctx == nil {
+		return nil
+	}
+	return context.WithValue(ctx, ContextKey, Context{
+		ID:     rand.Int(),
+		Driver: driver,
 	})
 }
 
 // GetID returns a transaction identifier from context.Context. Returns ErrMissingID if missing.
 func GetID(ctx context.Context) (int, error) {
-	txCtx, ok := ctx.Value(ContextKey).(txContext)
-	if !ok {
-		return 0, ErrMissingID
+	if ctx == nil {
+		return 0, ErrMissingContext
 	}
-	return txCtx.id, nil
+	txCtx, ok := ctx.Value(ContextKey).(Context)
+	if !ok {
+		return 0, ErrMissingContext
+	}
+	return txCtx.ID, nil
 }
 
-// getContext returns a transaction context from context.Context.
-func getContext(ctx context.Context) (txContext, error) {
-	txCtx, ok := ctx.Value(ContextKey).(txContext)
+// GetContext returns a transaction context from context.Context.
+//
+// Returns ErrMissingDriver if no driver was found in context.
+func GetContext(ctx context.Context) (Context, error) {
+	if ctx == nil {
+		return Context{}, ErrMissingContext
+	}
+	txCtx, ok := ctx.Value(ContextKey).(Context)
 	if !ok {
-		return txContext{}, ErrMissingContext
-	} else if _, ok = drivers[txCtx.driver]; !ok {
-		return txContext{}, ErrMissingDriver
+		return Context{}, ErrMissingContext
+	} else if _, ok = drivers[txCtx.Driver]; !ok {
+		return Context{}, ErrMissingDriver
 	}
 	return txCtx, nil
 }
@@ -69,9 +93,14 @@ func getContext(ctx context.Context) (txContext, error) {
 //
 // Finally, if a transaction or the given set of statements have a length greater than MaxTransactionStatements,
 // items with index further than MaxTransactionStatements will be ignored.
+//
+// Note: Append is thread-safe.
 func Append(ctx context.Context, stmt ...Statement) error {
 	if internalRegistry == nil {
 		internalRegistry = &sync.Map{}
+	}
+	if len(stmt) == 0 {
+		return nil
 	}
 
 	id, err := GetID(ctx)
@@ -99,6 +128,8 @@ func Append(ctx context.Context, stmt ...Statement) error {
 }
 
 // Get retrieves a set of statements using its transaction identifier (recovered from context.Context).
+//
+// Note: Get is thread-safe.
 func Get(ctx context.Context) ([]Statement, error) {
 	if internalRegistry == nil {
 		return nil, nil
@@ -111,42 +142,4 @@ func Get(ctx context.Context) ([]Statement, error) {
 
 	v, _ := internalRegistry.Load(id)
 	return parseTxStatements(v), nil
-}
-
-// Commit proceeds with the execution of the set of Statement from a transaction context.
-func Commit(ctx context.Context) error {
-	if internalRegistry == nil {
-		return ErrRegistryNotStarted
-	}
-
-	txCtx, err := getContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	v, _ := internalRegistry.LoadAndDelete(txCtx.id)
-	buf := parseTxStatements(v)
-	if buf == nil {
-		return ErrMissingTransaction
-	}
-	return drivers[txCtx.driver].Commit(ctx, buf)
-}
-
-// Rollback cancels the execution of the set of Statement from a transaction context.
-func Rollback(ctx context.Context) error {
-	if internalRegistry == nil {
-		return ErrRegistryNotStarted
-	}
-
-	txCtx, err := getContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	v, _ := internalRegistry.LoadAndDelete(txCtx.id)
-	buf := parseTxStatements(v)
-	if buf == nil {
-		return ErrMissingTransaction
-	}
-	return drivers[txCtx.driver].Rollback(ctx, buf)
 }

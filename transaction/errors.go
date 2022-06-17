@@ -3,8 +3,6 @@ package transaction
 import "errors"
 
 var (
-	// ErrMissingID the transaction identifier was missing from scoped context.Context.
-	ErrMissingID = errors.New("dynamoql: Missing transaction identifier from context")
 	// ErrMissingContext the transaction context was missing from scoped context.Context.
 	ErrMissingContext = errors.New("dynamoql: Missing transaction context from context")
 	// ErrMissingTransaction the transaction was missing from scoped context.Context.

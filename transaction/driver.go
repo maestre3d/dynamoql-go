@@ -24,7 +24,11 @@ var (
 	// driversMu guarantees drivers atomicity in concurrent scenarios.
 	driversMu sync.RWMutex
 	// drivers a list of available Driver(s) previously registered manually by a system.
-	drivers = make(map[string]Driver)
+	//
+	// Set No-op driver automatically.
+	drivers = map[string]Driver{
+		NoopDriverKey: NoopDriver{},
+	}
 )
 
 // RegisterDriver sets a database driver for transaction contexts.
@@ -43,11 +47,6 @@ func RegisterDriver(name string, driver Driver) {
 type NoopDriver struct{}
 
 var _ Driver = NoopDriver{}
-
-// RegisterNoop sets a NoopDriver into transaction's driver list using NoopDriverKey as key.
-func RegisterNoop() {
-	RegisterDriver(NoopDriverKey, NoopDriver{})
-}
 
 func (n NoopDriver) Commit(_ context.Context, _ []Statement) error {
 	return nil
