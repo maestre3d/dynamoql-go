@@ -8,16 +8,16 @@ bootstrap-test-env:
 	python ./testdata/seed_data.py InvoiceAndBills ./testdata/data.chunk0.csv
 	python ./testdata/seed_data.py InvoiceAndBills ./testdata/data.chunk1.csv
 
-remove-test-env:
+teardown-test-env:
 	cd ./testinfra/dynamodb-go && docker compose down --remove-orphans
 
 integration-test:
 	go test ./... --cover -tags=integration
 
-generate-coverage:
+gen-coverage:
 	go test ./... -coverprofile coverage.out . && go tool cover -html=coverage.out
 
-generate-integration-coverage:
+gen-integration-coverage:
 	go test ./... -tags=integration -coverprofile coverage.out . && go tool cover -html=coverage.out
 
 publish-pkg:

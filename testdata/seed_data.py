@@ -5,58 +5,40 @@ import csv
 import sys
 
 
-def import_csv(tableName, fileName):
-    dynamodb = boto3.resource('dynamodb', endpoint_url='http://localhost:8000', region_name='us-east-1')
-    dynamodb_table = dynamodb.Table(tableName)
-    count = 0
+def import_csv(table_name, file_name):
+    session = boto3.Session(aws_access_key_id="FAKE", aws_secret_access_key='FAKE_SECRET')
+    dynamodb = session.resource('dynamodb', endpoint_url='http://localhost:8000', region_name='us-east-1',)
+    dynamodb_table = dynamodb.Table(table_name)
+    item_count = 0
 
-    time1 = time.time()
-    with open(fileName, 'r', encoding="utf-8") as csvfile:
-        myreader = csv.reader(csvfile, delimiter=',')
-        for row in myreader:
-            count += 1
+    proc_begin_time = time.time()
+    with open(file_name, 'r', encoding="utf-8") as csvfile:
+        csv_reader = csv.reader(csvfile, delimiter=',')
+        for row in csv_reader:
+            item_count += 1
 
-            Invoice = {}
-            Invoice['PK'] = row[0]
-            Invoice['SK'] = 'root'
-            Invoice['InvoiceDate'] = row[1]
-            Invoice['InvoiceBalance'] = row[2]
-            Invoice['InvoiceStatus'] = row[3]
-            Invoice['InvoiceDueDate'] = row[4]
-            Invoice_item = dynamodb_table.put_item(Item=Invoice)
+            invoice = {'PK': row[0], 'SK': 'root', 'invoiceDate': row[1], 'invoiceBalance': row[2],
+                       'invoiceStatus': row[3], 'invoiceDueDate': row[4]}
+            dynamodb_table.put_item(Item=invoice)
 
-            Invoice_Customer = {}
-            Invoice_Customer['PK'] = row[0]
-            Invoice_Customer['SK'] = row[9]
-            Invoice_Customer_item = dynamodb_table.put_item(
-                Item=Invoice_Customer)
+            invoice_customer = {'PK': row[0], 'SK': row[9]}
+            dynamodb_table.put_item(
+                Item=invoice_customer)
 
-            Bill_Invoice = {}
-            Bill_Invoice['PK'] = row[0]
-            Bill_Invoice['SK'] = row[5]
-            Bill_Invoice['BillAmount'] = row[7]
-            Bill_Invoice['BillBalance'] = row[8]
-            Bill_Invoice_item = dynamodb_table.put_item(Item=Bill_Invoice)
+            bill_invoice = {'PK': row[0], 'SK': row[5], 'billAmount': row[7], 'billBalance': row[8]}
+            dynamodb_table.put_item(Item=bill_invoice)
 
-            Customer = {}
-            Customer['PK'] = row[9]
-            Customer['SK'] = row[0]
-            Customer['CustomerName'] = row[10]
-            Customer['State'] = row[11]
-            Customer_item = dynamodb_table.put_item(Item=Customer)
+            customer = {'PK': row[9], 'SK': row[0], 'customerName': row[10], 'State': row[11]}
+            dynamodb_table.put_item(Item=customer)
 
-            Bill = {}
-            Bill['PK'] = row[5]
-            Bill['SK'] = row[0]
-            Bill['BillDueDate'] = row[6]
-            Bill['BillAmount'] = row[7]
-            Bill_item = dynamodb_table.put_item(Item=Bill)
+            bill = {'PK': row[5], 'SK': row[0], 'billDueDate': row[6], 'billAmount': row[7]}
+            dynamodb_table.put_item(Item=bill)
 
-            if count % 100 == 0:
-                time2 = time.time() - time1
-                print("Entry count: %s in %s" % (count, time2))
-                time1 = time.time()
-        return count
+            if item_count % 100 == 0:
+                proc_end_time = time.time() - proc_begin_time
+                print("Entry count: %s in %s" % (item_count, proc_end_time))
+                proc_begin_time = time.time()
+        return item_count
 
 
 if __name__ == "__main__":
@@ -64,12 +46,12 @@ if __name__ == "__main__":
     tableName = args[0]
     fileName = args[1]
 
-    #### Capture the execution begin time ####
+    # Capture the execution begin time
     begin_time = time.time()
 
-    #### Call the function to Import data into the DynamoDb Table ####
+    # Call the function to Import data into the DynamoDb Table
     count = import_csv(tableName, fileName)
 
-    #### Print Execution Summary ####
+    # Print Execution Summary
     print('RowCount: %s, Total seconds: %s' %
           (count, (time.time() - begin_time)))
