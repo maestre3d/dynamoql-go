@@ -44,9 +44,11 @@ func (s *queryReaderTestSuite) TestQueryReader_GetItem() {
 		wantErr  bool
 	}{
 		{
-			name:     "Empty query",
-			query:    dynamodb.QueryInput{},
+			name:     "Empty",
+			query:    dynamodb.QueryInput{}, // missing table
 			pageSize: 0,
+			expItems: 0,
+			wantErr:  true,
 		},
 		{
 			name: "Invalid query",

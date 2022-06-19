@@ -46,8 +46,15 @@ func (s *queryPaginatorTestSuite) TestQueryPaginator_GetPage() {
 	}{
 		{
 			name:     "Empty query",
-			query:    dynamodb.QueryInput{},
+			query:    dynamodb.QueryInput{}, // missing table
 			pageSize: 0,
+			wantErr:  true,
+		},
+		{
+			name:     "Empty query with table name",
+			query:    dynamoql.NewQueryInput(dynamoql.Select().From("InvoiceAndBills")),
+			pageSize: 0,
+			wantErr:  true,
 		},
 		{
 			name: "Invalid query",
