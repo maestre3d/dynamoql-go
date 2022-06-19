@@ -44,13 +44,35 @@ func TestGetID(t *testing.T) {
 	}
 }
 
+func BenchmarkGetID(b *testing.B) {
+	ctx := transaction.NewContext(context.TODO())
+	seed := []transaction.Statement{
+		{
+			Kind:  transaction.ReadKind,
+			Table: "GraphTable",
+		}, {
+			Kind:  transaction.InsertKind,
+			Table: "GraphTable",
+		},
+	}
+	if err := transaction.Append(ctx, seed...); err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, _ = transaction.GetID(ctx)
+	}
+}
+
 func TestAppend(t *testing.T) {
 	rootCtx := context.Background()
+	transaction.MaxTransactionStatements = 5
 	tests := []struct {
-		name   string
-		in     []transaction.Statement
-		err    error
-		expLen int
+		name     string
+		in       []transaction.Statement
+		seedFunc func(t *testing.T, ctx context.Context)
+		err      error
+		expLen   int
 	}{
 		{
 			name:   "Empty",
@@ -59,7 +81,66 @@ func TestAppend(t *testing.T) {
 			expLen: 0,
 		},
 		{
-			name: "Valid multi value",
+			name: "Multi value out of range and populated internal buffer",
+			in: []transaction.Statement{
+				{
+					Kind:  transaction.ReadKind,
+					Table: "GraphTable",
+				}, {
+					Kind:  transaction.InsertKind,
+					Table: "GraphTable",
+				}, {
+					Kind:  transaction.UpdateKind,
+					Table: "GraphTable",
+				}, {
+					Kind:  transaction.DeleteKind,
+					Table: "GraphTableLastReachable",
+				}, {
+					Kind:  transaction.DeleteKind,
+					Table: "GraphTableNotReachable",
+				}, {
+					Kind:  transaction.ReadKind,
+					Table: "GraphTableNotReachable",
+				},
+			},
+			seedFunc: func(t *testing.T, ctx context.Context) {
+				err := transaction.Append(ctx, transaction.Statement{
+					Kind:  transaction.ReadKind,
+					Table: "GraphTableSeed",
+				})
+				require.NoError(t, err)
+			},
+			err:    nil,
+			expLen: 5,
+		},
+		{
+			name: "Multi value out of range",
+			in: []transaction.Statement{
+				{
+					Kind:  transaction.ReadKind,
+					Table: "GraphTable",
+				}, {
+					Kind:  transaction.InsertKind,
+					Table: "GraphTable",
+				}, {
+					Kind:  transaction.UpdateKind,
+					Table: "GraphTable",
+				}, {
+					Kind:  transaction.DeleteKind,
+					Table: "GraphTable",
+				}, {
+					Kind:  transaction.DeleteKind,
+					Table: "GraphTableLastReachable",
+				}, {
+					Kind:  transaction.ReadKind,
+					Table: "GraphTableNotReachable",
+				},
+			},
+			err:    nil,
+			expLen: 5,
+		},
+		{
+			name: "Multi value",
 			in: []transaction.Statement{
 				{
 					Kind:  transaction.ReadKind,
@@ -79,7 +160,7 @@ func TestAppend(t *testing.T) {
 			expLen: 4,
 		},
 		{
-			name: "Valid",
+			name: "Single value",
 			in: []transaction.Statement{
 				{
 					Kind:  transaction.UpsertKind,
@@ -93,6 +174,9 @@ func TestAppend(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := transaction.NewContext(rootCtx)
+			if tt.seedFunc != nil {
+				tt.seedFunc(t, ctx)
+			}
 			err := transaction.Append(ctx, tt.in...)
 			assert.Equal(t, tt.err, err)
 			out, _ := transaction.Get(ctx)

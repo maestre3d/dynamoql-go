@@ -95,11 +95,11 @@ func GetContext(ctx context.Context) (Context, error) {
 // items with index further than MaxTransactionStatements will be ignored.
 //
 // Note: Append is thread-safe.
-func Append(ctx context.Context, stmt ...Statement) error {
+func Append(ctx context.Context, stmts ...Statement) error {
 	if internalRegistry == nil {
 		internalRegistry = &sync.Map{}
 	}
-	if len(stmt) == 0 {
+	if len(stmts) == 0 {
 		return nil
 	}
 
@@ -108,21 +108,33 @@ func Append(ctx context.Context, stmt ...Statement) error {
 		return err
 	}
 
-	if len(stmt) >= MaxTransactionStatements {
-		stmt = stmt[:MaxTransactionStatements-1] // ignore extra items
-	}
-
 	v, _ := internalRegistry.Load(id)
 	buf := parseTxStatements(v)
+	// Internal buffer is always initialized with cap = MaxTransactionStatements.
+	//
+	// Hence, to avoid new buffer malloc by go internals -append items' length > buffer's cap size-,
+	// this function shrinks input slice to the remaining unassigned memory address blocks (capacity)
+	// of the internal buffer.
+	//
+	// Thus, for a scenario where:
+	//
+	// len(stmts) = 6
+	// MaxTransactionStatements = cap(buf) = 5
+	// len(buf) = 1
+	// remainingSpace = cap(buf) - len(buf) = 5 - 1 = 4
+	//
+	// Therefore, final stmts' length would be equals to 4.
+	//
+	// Important note: this function DOES NOT reduce stmts' capacity as this operation would require another malloc,
+	// increasing memory footprint.
 	if buf == nil {
 		buf = make([]Statement, 0, MaxTransactionStatements)
 	}
-	if len(buf) >= MaxTransactionStatements {
-		buf = buf[:MaxTransactionStatements-1] // ignore extra items
-	} else {
-		// moving this to an else statement to avoid extra-allocation
-		buf = append(buf, stmt...)
+	remainingCap := cap(buf) - len(buf)
+	if remainingCap < len(stmts) {
+		stmts = stmts[:remainingCap]
 	}
+	buf = append(buf, stmts...)
 	internalRegistry.Store(id, buf)
 	return nil
 }
