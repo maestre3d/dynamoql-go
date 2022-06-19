@@ -10,14 +10,14 @@ const (
 	NoopDriverKey = "noop"
 	// DynamoDBDriverKey DynamoDBDriver key for transaction internal driver list.
 	DynamoDBDriverKey = "dynamodb"
+	// SQLDriverKey SqlDriver key for transaction internal driver list.
+	SQLDriverKey = "sql"
 )
 
 // Driver database implementation of underlying commit and rollback mechanisms.
 type Driver interface {
-	// Commit proceeds with the execution of the set of Statement from a transaction context.
-	Commit(context.Context, []Statement) error
-	// Rollback cancels the execution of the set of Statement from a transaction context.
-	Rollback(context.Context, []Statement) error
+	// Exec proceeds with the execution of the set of Statement from a transaction context.
+	Exec(context.Context, []Statement) error
 }
 
 var (
@@ -48,10 +48,6 @@ type NoopDriver struct{}
 
 var _ Driver = NoopDriver{}
 
-func (n NoopDriver) Commit(_ context.Context, _ []Statement) error {
-	return nil
-}
-
-func (n NoopDriver) Rollback(_ context.Context, _ []Statement) error {
+func (n NoopDriver) Exec(_ context.Context, _ []Statement) error {
 	return nil
 }

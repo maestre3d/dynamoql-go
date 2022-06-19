@@ -155,3 +155,23 @@ func Get(ctx context.Context) ([]Statement, error) {
 	v, _ := internalRegistry.Load(id)
 	return parseTxStatements(v), nil
 }
+
+// Exec proceeds with the execution of the set of Statement from a transaction context.
+//
+// Note: Exec is thread-safe.
+func Exec(ctx context.Context) error {
+	if internalRegistry == nil {
+		return ErrRegistryNotStarted
+	}
+	txCtx, err := GetContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	v, _ := internalRegistry.LoadAndDelete(txCtx.ID)
+	buf := parseTxStatements(v)
+	if buf == nil {
+		return ErrMissingTransaction
+	}
+	return drivers[txCtx.Driver].Exec(ctx, buf)
+}

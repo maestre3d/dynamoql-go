@@ -48,11 +48,11 @@ func BenchmarkGetID(b *testing.B) {
 	ctx := transaction.NewContext(context.TODO())
 	seed := []transaction.Statement{
 		{
-			Kind:  transaction.ReadKind,
-			Table: "GraphTable",
+			Kind:      transaction.ReadKind,
+			Operation: nil,
 		}, {
-			Kind:  transaction.InsertKind,
-			Table: "GraphTable",
+			Kind:      transaction.InsertKind,
+			Operation: nil,
 		},
 	}
 	if err := transaction.Append(ctx, seed...); err != nil {
@@ -84,29 +84,29 @@ func TestAppend(t *testing.T) {
 			name: "Multi value out of range and populated internal buffer",
 			in: []transaction.Statement{
 				{
-					Kind:  transaction.ReadKind,
-					Table: "GraphTable",
+					Kind:      transaction.ReadKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.InsertKind,
-					Table: "GraphTable",
+					Kind:      transaction.InsertKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.UpdateKind,
-					Table: "GraphTable",
+					Kind:      transaction.UpdateKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.DeleteKind,
-					Table: "GraphTableLastReachable",
+					Kind:      transaction.DeleteKind,
+					Operation: nil, // last reachable
 				}, {
-					Kind:  transaction.DeleteKind,
-					Table: "GraphTableNotReachable",
+					Kind:      transaction.DeleteKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.ReadKind,
-					Table: "GraphTableNotReachable",
+					Kind:      transaction.ReadKind,
+					Operation: nil,
 				},
 			},
 			seedFunc: func(t *testing.T, ctx context.Context) {
 				err := transaction.Append(ctx, transaction.Statement{
-					Kind:  transaction.ReadKind,
-					Table: "GraphTableSeed",
+					Kind:      transaction.ReadKind,
+					Operation: nil,
 				})
 				require.NoError(t, err)
 			},
@@ -117,23 +117,23 @@ func TestAppend(t *testing.T) {
 			name: "Multi value out of range",
 			in: []transaction.Statement{
 				{
-					Kind:  transaction.ReadKind,
-					Table: "GraphTable",
+					Kind:      transaction.ReadKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.InsertKind,
-					Table: "GraphTable",
+					Kind:      transaction.InsertKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.UpdateKind,
-					Table: "GraphTable",
+					Kind:      transaction.UpdateKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.DeleteKind,
-					Table: "GraphTable",
+					Kind:      transaction.DeleteKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.DeleteKind,
-					Table: "GraphTableLastReachable",
+					Kind:      transaction.DeleteKind,
+					Operation: nil, // last reachable
 				}, {
-					Kind:  transaction.ReadKind,
-					Table: "GraphTableNotReachable",
+					Kind:      transaction.ReadKind,
+					Operation: nil,
 				},
 			},
 			err:    nil,
@@ -143,17 +143,17 @@ func TestAppend(t *testing.T) {
 			name: "Multi value",
 			in: []transaction.Statement{
 				{
-					Kind:  transaction.ReadKind,
-					Table: "GraphTable",
+					Kind:      transaction.ReadKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.InsertKind,
-					Table: "GraphTable",
+					Kind:      transaction.InsertKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.UpdateKind,
-					Table: "GraphTable",
+					Kind:      transaction.UpdateKind,
+					Operation: nil,
 				}, {
-					Kind:  transaction.DeleteKind,
-					Table: "GraphTable",
+					Kind:      transaction.DeleteKind,
+					Operation: nil,
 				},
 			},
 			err:    nil,
@@ -163,8 +163,8 @@ func TestAppend(t *testing.T) {
 			name: "Single value",
 			in: []transaction.Statement{
 				{
-					Kind:  transaction.UpsertKind,
-					Table: "GraphTable",
+					Kind:      transaction.UpsertKind,
+					Operation: nil,
 				},
 			},
 			err:    nil,
@@ -191,8 +191,8 @@ func BenchmarkAppend(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = transaction.Append(ctx, transaction.Statement{
-			Kind:  transaction.UpsertKind,
-			Table: "GraphTable",
+			Kind:      transaction.UpsertKind,
+			Operation: nil,
 		})
 	}
 }
@@ -202,11 +202,11 @@ func TestGet(t *testing.T) {
 	txContext := transaction.NewContext(context.TODO())
 	seed := []transaction.Statement{
 		{
-			Kind:  transaction.ReadKind,
-			Table: "GraphTable",
+			Kind:      transaction.ReadKind,
+			Operation: nil,
 		}, {
-			Kind:  transaction.InsertKind,
-			Table: "GraphTable",
+			Kind:      transaction.InsertKind,
+			Operation: nil,
 		},
 	}
 	errSeed := transaction.Append(txContext, seed...)
@@ -250,11 +250,11 @@ func BenchmarkGet(b *testing.B) {
 	ctx := transaction.NewContext(context.TODO())
 	seed := []transaction.Statement{
 		{
-			Kind:  transaction.ReadKind,
-			Table: "GraphTable",
+			Kind:      transaction.ReadKind,
+			Operation: nil,
 		}, {
-			Kind:  transaction.InsertKind,
-			Table: "GraphTable",
+			Kind:      transaction.InsertKind,
+			Operation: nil,
 		},
 	}
 	if err := transaction.Append(ctx, seed...); err != nil {
@@ -355,6 +355,80 @@ func TestNewContextWithDriver(t *testing.T) {
 			}
 			assert.Equal(t, tt.expDriver, out.Driver)
 			assert.Greater(t, out.ID, 0)
+		})
+	}
+}
+
+func TestExec(t *testing.T) {
+	const (
+		_ uint8 = iota // commit var
+		opRollback
+	)
+
+	// cover case when internal registry hasn't been started
+	err := transaction.Exec(context.TODO())
+	if err != nil {
+		// start registry
+		err = transaction.Append(context.TODO())
+		require.NoError(t, err)
+	}
+
+	tests := []struct {
+		name     string
+		in       context.Context
+		seedFunc func(t *testing.T, ctx context.Context)
+		op       uint8
+		err      error
+	}{
+		{
+			name: "Nil ctx",
+			in:   nil,
+			err:  transaction.ErrMissingContext,
+		},
+		{
+			name: "Invalid tx ctx",
+			in:   context.TODO(),
+			err:  transaction.ErrMissingContext,
+		},
+		{
+			name: "empty tx context",
+			in:   transaction.NewContext(context.TODO()),
+			err:  transaction.ErrMissingTransaction,
+		},
+		{
+			name: "populated tx context commit",
+			in:   transaction.NewContext(context.TODO()),
+			seedFunc: func(t *testing.T, ctx context.Context) {
+				err = transaction.Append(ctx, transaction.Statement{
+					Kind:      transaction.ReadKind,
+					Operation: nil,
+				})
+				require.NoError(t, err)
+			},
+			err: nil,
+		},
+		{
+			name: "populated tx context rollback",
+			in:   transaction.NewContext(context.TODO()),
+			seedFunc: func(t *testing.T, ctx context.Context) {
+				err = transaction.Append(ctx, transaction.Statement{
+					Kind:      transaction.ReadKind,
+					Operation: nil,
+				})
+				require.NoError(t, err)
+			},
+			op:  opRollback,
+			err: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.seedFunc != nil {
+				tt.seedFunc(t, tt.in)
+			}
+
+			err = transaction.Exec(tt.in)
+			assert.Equal(t, tt.err, err)
 		})
 	}
 }

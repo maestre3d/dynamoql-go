@@ -10,10 +10,6 @@ type driverMock struct{}
 
 var _ transaction.Driver = driverMock{}
 
-func (d driverMock) Commit(_ context.Context, _ []transaction.Statement) error {
-	return nil
-}
-
-func (d driverMock) Rollback(_ context.Context, _ []transaction.Statement) error {
+func (d driverMock) Exec(_ context.Context, _ []transaction.Statement) error {
 	return nil
 }

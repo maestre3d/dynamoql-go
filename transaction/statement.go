@@ -2,8 +2,10 @@ package transaction
 
 // Statement instruction to be executed within a transaction by a database system.
 type Statement struct {
-	Kind  Kind
-	Table string
+	// Kind of operation to be executed.
+	Kind Kind
+	// Operation to be executed by a Driver.
+	Operation interface{}
 }
 
 // parseTxStatements converts a generic interface to a Statement slice.
