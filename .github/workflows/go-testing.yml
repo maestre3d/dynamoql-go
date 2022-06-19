@@ -2,7 +2,7 @@ name: Go Testing
 
 on:
   push:
-    branches: [ master, 'feature/**' ]
+    branches: [ master ]
     paths: ['**.go', 'testdata/**.py']
   pull_request:
     branches: [ master ]
