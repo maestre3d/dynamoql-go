@@ -1,4 +1,4 @@
-//go:build !integration
+//go:build integration
 
 package transaction_test
 
