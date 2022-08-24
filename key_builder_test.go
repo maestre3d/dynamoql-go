@@ -3,7 +3,7 @@ package dynamoql_test
 import (
 	"testing"
 
-	"github.com/maestre3d/dynamoql"
+	"github.com/maestre3d/dynamoql-go"
 	"github.com/stretchr/testify/assert"
 )
 

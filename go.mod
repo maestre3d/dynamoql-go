@@ -1,4 +1,4 @@
-module github.com/maestre3d/dynamoql
+module github.com/maestre3d/dynamoql-go
 
 go 1.17
 

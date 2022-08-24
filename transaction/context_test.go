@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/maestre3d/dynamoql/transaction"
+	"github.com/maestre3d/dynamoql-go/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
