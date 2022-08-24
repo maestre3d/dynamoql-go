@@ -3,7 +3,7 @@ package transaction_test
 import (
 	"context"
 
-	"github.com/maestre3d/dynamoql/transaction"
+	"github.com/maestre3d/dynamoql-go/transaction"
 )
 
 type driverMock struct{}
